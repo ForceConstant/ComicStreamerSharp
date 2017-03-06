@@ -97,7 +97,7 @@ namespace ComicStreamer.Tests
         public async Task GetComicPageTest()
         {
             ComicStreamerSharp cs = new ComicStreamerSharp(BaseUrl);
-            Byte [] response = await cs.GetComicPage(98);
+            Byte[] response = await cs.GetComicPage(98);
 
             if (response.Length > 0)
             {

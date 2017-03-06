@@ -4,8 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using RestSharp;
+using RestSharp.Portable;
 using Newtonsoft.Json.Linq;
+using RestSharp.Portable.HttpClient;
 
 namespace ComicStreamer
 {
@@ -16,39 +17,36 @@ namespace ComicStreamer
             msBaseUrl = asBaseUrl;
         }
 
-        private IRestResponse ExecuteCommand(string Resource)
+        private async Task<IRestResponse> ExecuteCommand(string Resource)
         {
-            var client = new RestClient();
-            client.BaseUrl = new Uri(msBaseUrl);
+            var client = new RestClient(msBaseUrl);
 
             var request = new RestRequest();
             request.Resource = Resource;
 
-            IRestResponse response = client.Execute(request);
+            IRestResponse response = await client.Execute(request);
 
-            if (response.ErrorException != null)
-            {
-                Console.WriteLine("Error retrieving response for " + Resource);
-            }
+            System.Diagnostics.Debug.Assert(response.IsSuccess,
+                "Error retrieving response for " + Resource);
 
             return response;
         }
-
-        public string GetDBInfo()
+        
+        public async Task<string> GetDBInfo()
         {
-            IRestResponse response = ExecuteCommand("dbinfo");
+            IRestResponse response = await ExecuteCommand("dbinfo");
 
             return response.Content;
         }
 
-        public string GetVersion()
+        public async Task<string> GetVersion()
         {
-            IRestResponse response = ExecuteCommand("version");
+            IRestResponse response = await ExecuteCommand("version");
 
             return response.Content;
         }
 
-        public string GetDeletedComics(string date)
+        public async Task<string> GetDeletedComics(string date)
         {
             /*
                   * /deleted
@@ -57,26 +55,26 @@ namespace ComicStreamer
                          since
                                  - date of the earliest returned value */
 
-            IRestResponse response = ExecuteCommand("deleted?since=" + date);
+            IRestResponse response = await ExecuteCommand("deleted?since=" + date);
 
             return response.Content;
         }
 
 
-        public JObject GetComicInfo(string id)
+        public async Task<JObject> GetComicInfo(int id)
         {
             /*     /comic/{id}
                      - info about specific comic
                      */
 
-            IRestResponse response = ExecuteCommand("/comic/" + id);
+            IRestResponse response = await ExecuteCommand("/comic/" + id);
 
             JObject o = JObject.Parse(response.Content);
 
             return o;
         }   
 
-        public byte[] GetComicPage(string id = "0", int pagenum = 0)
+        public async Task<byte[]> GetComicPage(int id, int pagenum = 0)
         {
             //TODO: Add height arg.
             /*/comic/{id}/page/{pagenum}
@@ -84,39 +82,39 @@ namespace ComicStreamer
                          args:
                              max_height
                                  - will resize image*/
-            IRestResponse response = ExecuteCommand("/comic/" + id + "/page/" + pagenum);
+            IRestResponse response = await ExecuteCommand("/comic/" + id + "/page/" + pagenum);
 
             byte[] imageBytes = response.RawBytes;
  
             return imageBytes;
         }
                  
-        public void SetBookmark(string id, string pagenum = "clear")
+        public async void SetBookmark(int id, string pagenum = "clear")
         {
             /*/comic/{id}/page/{pagenum}/bookmark
                      - sets the time of last access and last page read for the comic.
                          client would fetch this for each page turn
                          if {pagenum} is "clear"  clears bookmark for the given book*/
-            IRestResponse response = ExecuteCommand("/comic/" + id + "/page/" + pagenum + "/bookmark");
+            IRestResponse response = await ExecuteCommand("/comic/" + id + "/page/" + pagenum + "/bookmark");
 
         }
 
-        public byte[] GetThumbnail(string id)
+        public async Task<byte[]> GetThumbnail(int id)
         {
             /* /comic/{id}/thumbnail
                      - return specific small cover image of specific comic*/
-            IRestResponse response = ExecuteCommand("/comic/" + id  + "/thumbnail");
+            IRestResponse response = await ExecuteCommand("/comic/" + id  + "/thumbnail");
 
             byte[] imageBytes = response.RawBytes;
 
             return imageBytes;
         }
 
-        public byte[] GetComicFile(string id)
+        public async Task<byte[]> GetComicFile(int id)
         {
             /* /comic/{id}/file
                      - return entire specific comic file*/
-            IRestResponse response = ExecuteCommand("/comic/" + id + "/file");
+            IRestResponse response = await ExecuteCommand("/comic/" + id + "/file");
 
             byte[] imageBytes = response.RawBytes;
 
@@ -175,7 +173,7 @@ namespace ComicStreamer
 
                    date format is "YYYY-MM-DD hh:mm:ss", where the right-most (most granular) portions may be omitted
 /*/
-        public JObject GetComicList(
+        public async Task<JObject> GetComicList(
             string series = "", 
             string title = "",
             string path = "",
@@ -197,7 +195,7 @@ namespace ComicStreamer
             string order = "")
         {
           
-            IRestResponse response = ExecuteCommand("/comiclist?series=" + series + 
+            IRestResponse response = await ExecuteCommand("/comiclist?series=" + series + 
                 "&title=" + title + 
                 "&path=" + path + 
                 "&character=" + character + 
@@ -222,13 +220,13 @@ namespace ComicStreamer
             return o;
         }
                  
-        public JObject GetFolders(string path = "")
+        public async Task<JObject> GetFolders(string path = "")
         {
             /*/folders/[path]
                      - Return list of folders  with names and access URLS), and list of comics in the specific folder
                        Without a path, returns just the top level folders
                        */
-            IRestResponse response = ExecuteCommand("/folders/" + path);
+            IRestResponse response = await ExecuteCommand("/folders/" + path);
 
             JObject o = JObject.Parse(response.Content);
 
